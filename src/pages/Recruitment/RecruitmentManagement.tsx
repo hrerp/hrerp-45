@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DetailsPanel from '@/components/Common/DetailsPanel';
@@ -6,20 +7,25 @@ import JobPostingsTab from '@/components/Recruitment/JobPostingsTab';
 import CandidatesTab from '@/components/Recruitment/CandidatesTab';
 import InterviewsTab from '@/components/Recruitment/InterviewsTab';
 import AnalyticsTab from '@/components/Recruitment/AnalyticsTab';
+import { useRecruitment } from '@/hooks/useRecruitment';
 
 const RecruitmentManagement = () => {
+  const { jobPostings, jobApplications, loading } = useRecruitment();
   const [selectedJob, setSelectedJob] = useState<any>(null);
   const [selectedCandidate, setSelectedCandidate] = useState<any>(null);
 
-  // Empty data arrays - will be populated when user adds data
-  const jobs: any[] = [];
-  const candidates: any[] = [];
-  const recruitmentData: any[] = [];
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-96">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div className="lg:col-span-2 space-y-6">
-        <RecruitmentStats />
+        <RecruitmentStats jobPostings={jobPostings} jobApplications={jobApplications} />
 
         <Tabs defaultValue="jobs" className="w-full">
           <TabsList>
@@ -30,11 +36,11 @@ const RecruitmentManagement = () => {
           </TabsList>
 
           <TabsContent value="jobs">
-            <JobPostingsTab jobs={jobs} setSelectedJob={setSelectedJob} />
+            <JobPostingsTab jobs={jobPostings} setSelectedJob={setSelectedJob} />
           </TabsContent>
 
           <TabsContent value="candidates">
-            <CandidatesTab candidates={candidates} setSelectedCandidate={setSelectedCandidate} />
+            <CandidatesTab candidates={jobApplications} setSelectedCandidate={setSelectedCandidate} />
           </TabsContent>
 
           <TabsContent value="interviews">
@@ -42,7 +48,7 @@ const RecruitmentManagement = () => {
           </TabsContent>
 
           <TabsContent value="analytics">
-            <AnalyticsTab recruitmentData={recruitmentData} />
+            <AnalyticsTab recruitmentData={jobApplications} />
           </TabsContent>
         </Tabs>
       </div>
@@ -55,13 +61,39 @@ const RecruitmentManagement = () => {
         >
           {selectedJob && (
             <div className="space-y-4">
-              {/* Job details content */}
+              <div>
+                <h3 className="font-semibold text-lg">{selectedJob.title}</h3>
+                <p className="text-gray-600">{selectedJob.departments?.name}</p>
+              </div>
+              <div>
+                <h4 className="font-medium">Description</h4>
+                <p className="text-sm text-gray-600">{selectedJob.description}</p>
+              </div>
+              <div>
+                <h4 className="font-medium">Requirements</h4>
+                <p className="text-sm text-gray-600">{selectedJob.requirements}</p>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span>Status: <span className="font-medium">{selectedJob.status}</span></span>
+                <span>Type: <span className="font-medium">{selectedJob.employment_type}</span></span>
+              </div>
             </div>
           )}
           
           {selectedCandidate && (
             <div className="space-y-4">
-              {/* Candidate details content */}
+              <div>
+                <h3 className="font-semibold text-lg">{selectedCandidate.candidate_name}</h3>
+                <p className="text-gray-600">{selectedCandidate.candidate_email}</p>
+              </div>
+              <div>
+                <h4 className="font-medium">Applied for</h4>
+                <p className="text-sm text-gray-600">{selectedCandidate.job_postings?.title}</p>
+              </div>
+              <div>
+                <h4 className="font-medium">Status</h4>
+                <p className="text-sm text-gray-600">{selectedCandidate.status}</p>
+              </div>
             </div>
           )}
         </DetailsPanel>

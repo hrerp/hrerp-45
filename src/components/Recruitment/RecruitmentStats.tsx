@@ -5,7 +5,17 @@ import {
   Users, TrendingUp, CheckCircle 
 } from 'lucide-react';
 
-const RecruitmentStats = () => {
+interface RecruitmentStatsProps {
+  jobPostings: any[];
+  jobApplications: any[];
+}
+
+const RecruitmentStats = ({ jobPostings, jobApplications }: RecruitmentStatsProps) => {
+  const openPositions = jobPostings.filter(job => job.status === 'open').length;
+  const totalApplications = jobApplications.length;
+  const interviewApplications = jobApplications.filter(app => app.status === 'interview').length;
+  const hiredApplications = jobApplications.filter(app => app.status === 'hired').length;
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
       <Card>
@@ -17,10 +27,10 @@ const RecruitmentStats = () => {
           <CardDescription>Currently hiring</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="text-3xl font-bold">0</div>
+          <div className="text-3xl font-bold">{openPositions}</div>
           <div className="text-sm text-gray-500 flex items-center space-x-1">
             <TrendingUp className="w-4 h-4 text-green-500" />
-            <span>No positions yet</span>
+            <span>{openPositions > 0 ? `${openPositions} active positions` : 'No positions yet'}</span>
           </div>
         </CardContent>
       </Card>
@@ -31,13 +41,13 @@ const RecruitmentStats = () => {
             <UserPlus className="w-4 h-4 text-green-500" />
             <span>Applications</span>
           </CardTitle>
-          <CardDescription>This month</CardDescription>
+          <CardDescription>Total received</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="text-3xl font-bold">0</div>
+          <div className="text-3xl font-bold">{totalApplications}</div>
           <div className="text-sm text-gray-500 flex items-center space-x-1">
             <FileText className="w-4 h-4 text-blue-500" />
-            <span>No applications yet</span>
+            <span>{totalApplications > 0 ? `${totalApplications} applications received` : 'No applications yet'}</span>
           </div>
         </CardContent>
       </Card>
@@ -48,13 +58,13 @@ const RecruitmentStats = () => {
             <Calendar className="w-4 h-4 text-orange-500" />
             <span>Interviews</span>
           </CardTitle>
-          <CardDescription>Scheduled</CardDescription>
+          <CardDescription>In progress</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="text-3xl font-bold">0</div>
+          <div className="text-3xl font-bold">{interviewApplications}</div>
           <div className="text-sm text-gray-500 flex items-center space-x-1">
-            <Clock className="w-4 h-4 text-red-500" />
-            <span>No interviews scheduled</span>
+            <Clock className="w-4 h-4 text-orange-500" />
+            <span>{interviewApplications > 0 ? `${interviewApplications} in interview stage` : 'No interviews scheduled'}</span>
           </div>
         </CardContent>
       </Card>
@@ -65,13 +75,13 @@ const RecruitmentStats = () => {
             <CheckCircle className="w-4 h-4 text-green-500" />
             <span>Hires</span>
           </CardTitle>
-          <CardDescription>This quarter</CardDescription>
+          <CardDescription>Successful placements</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="text-3xl font-bold">0</div>
+          <div className="text-3xl font-bold">{hiredApplications}</div>
           <div className="text-sm text-gray-500 flex items-center space-x-1">
             <Users className="w-4 h-4 text-purple-500" />
-            <span>No hires yet</span>
+            <span>{hiredApplications > 0 ? `${hiredApplications} successful hires` : 'No hires yet'}</span>
           </div>
         </CardContent>
       </Card>
