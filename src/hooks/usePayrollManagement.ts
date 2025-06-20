@@ -29,7 +29,7 @@ export const usePayrollManagement = () => {
         .order('start_date', { ascending: false });
 
       if (error) throw error;
-      setPayPeriods(data as PayPeriod[] || []);
+      setPayPeriods(data || []);
     } catch (error) {
       console.error('Error fetching pay periods:', error);
       setPayPeriods([]);
@@ -54,7 +54,7 @@ export const usePayrollManagement = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setPayrollRecords(data as PayrollRecord[] || []);
+      setPayrollRecords(data || []);
     } catch (error) {
       console.error('Error fetching payroll records:', error);
       setPayrollRecords([]);
@@ -73,7 +73,7 @@ export const usePayrollManagement = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setBenefits(data as EmployeeBenefit[] || []);
+      setBenefits(data || []);
     } catch (error) {
       console.error('Error fetching benefits:', error);
       setBenefits([]);
@@ -82,9 +82,17 @@ export const usePayrollManagement = () => {
 
   const createPayPeriod = async (periodData: Partial<PayPeriod>) => {
     try {
+      // Ensure required fields are present
+      const payPeriodData = {
+        period_name: periodData.period_name || 'Unnamed Period',
+        start_date: periodData.start_date || new Date().toISOString().split('T')[0],
+        end_date: periodData.end_date || new Date().toISOString().split('T')[0],
+        status: periodData.status || 'draft'
+      };
+
       const { data, error } = await supabase
         .from('pay_periods')
-        .insert([periodData])
+        .insert([payPeriodData])
         .select()
         .single();
 

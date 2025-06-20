@@ -73,7 +73,7 @@ export const useLearningDevelopment = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setCertifications(data as Certification[] || []);
+      setCertifications(data || []);
     } catch (error) {
       console.error('Error fetching certifications:', error);
       setCertifications([]);
@@ -134,12 +134,20 @@ export const useLearningDevelopment = () => {
     }
 
     try {
+      // Ensure required fields are present
+      const certData = {
+        employee_id: currentEmployee.id,
+        name: certificationData.name || 'Unnamed Certification',
+        issuing_organization: certificationData.issuing_organization || null,
+        issue_date: certificationData.issue_date || null,
+        expiry_date: certificationData.expiry_date || null,
+        credential_id: certificationData.credential_id || null,
+        status: certificationData.status || 'active'
+      };
+
       const { data, error } = await supabase
         .from('certifications')
-        .insert([{
-          ...certificationData,
-          employee_id: currentEmployee.id
-        }])
+        .insert([certData])
         .select()
         .single();
 

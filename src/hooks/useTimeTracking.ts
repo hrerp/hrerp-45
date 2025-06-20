@@ -8,12 +8,10 @@ import type { Tables } from '@/integrations/supabase/types';
 
 type TimeEntry = Tables<'time_entries'>;
 type Project = Tables<'projects'>;
-type Task = Tables<'tasks'>;
 
 export const useTimeTracking = () => {
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [tasks, setTasks] = useState<Task[]>([]);
   const [activeEntry, setActiveEntry] = useState<TimeEntry | null>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -35,8 +33,8 @@ export const useTimeTracking = () => {
       if (error) throw error;
       setTimeEntries(data || []);
       
-      // Find active entry
-      const active = data?.find(entry => entry.status === 'active' && !entry.end_time);
+      // Find active entry - for now, we'll just check for entries without end_time
+      const active = data?.find(entry => !entry.end_time);
       setActiveEntry(active || null);
     } catch (error) {
       console.error('Error fetching time entries:', error);
@@ -63,22 +61,7 @@ export const useTimeTracking = () => {
     }
   };
 
-  const fetchTasks = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('tasks')
-        .select('*')
-        .eq('status', 'active')
-        .order('name');
-
-      if (error) throw error;
-      setTasks(data || []);
-    } catch (error) {
-      console.error('Error fetching tasks:', error);
-    }
-  };
-
-  const startTracking = async (projectId?: string, taskId?: string, description?: string) => {
+  const startTracking = async (projectId?: string, description?: string) => {
     if (!currentEmployee) {
       toast({
         title: "Error",
@@ -99,10 +82,8 @@ export const useTimeTracking = () => {
         .insert([{
           employee_id: currentEmployee.id,
           project_id: projectId || null,
-          task_id: taskId || null,
           start_time: new Date().toISOString(),
-          description: description || null,
-          status: 'active'
+          description: description || null
         }])
         .select()
         .single();
@@ -134,15 +115,11 @@ export const useTimeTracking = () => {
 
     try {
       const endTime = new Date().toISOString();
-      const startTime = new Date(activeEntry.start_time);
-      const totalHours = (new Date(endTime).getTime() - startTime.getTime()) / (1000 * 60 * 60);
 
       const { data, error } = await supabase
         .from('time_entries')
         .update({
-          end_time: endTime,
-          total_hours: totalHours,
-          status: 'completed'
+          end_time: endTime
         })
         .eq('id', activeEntry.id)
         .select()
@@ -170,81 +147,33 @@ export const useTimeTracking = () => {
     }
   };
 
-  const pauseTracking = async () => {
-    if (!activeEntry) return null;
-
-    try {
-      const { data, error } = await supabase
-        .from('time_entries')
-        .update({ status: 'paused' })
-        .eq('id', activeEntry.id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      
-      setActiveEntry(data);
-      await fetchTimeEntries();
-      
-      return data;
-    } catch (error) {
-      console.error('Error pausing time tracking:', error);
-      toast({
-        title: "Error",
-        description: "Failed to pause time tracking",
-        variant: "destructive"
-      });
-      return null;
-    }
-  };
-
-  const resumeTracking = async () => {
-    if (!activeEntry) return null;
-
-    try {
-      const { data, error } = await supabase
-        .from('time_entries')
-        .update({ status: 'active' })
-        .eq('id', activeEntry.id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      
-      setActiveEntry(data);
-      await fetchTimeEntries();
-      
-      return data;
-    } catch (error) {
-      console.error('Error resuming time tracking:', error);
-      toast({
-        title: "Error",
-        description: "Failed to resume time tracking",
-        variant: "destructive"
-      });
-      return null;
-    }
-  };
-
   const getTimeStats = () => {
     const today = new Date().toISOString().split('T')[0];
     const thisWeekStart = new Date();
     thisWeekStart.setDate(thisWeekStart.getDate() - thisWeekStart.getDay());
     const thisMonthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 
+    // Calculate hours based on start_time and end_time
+    const calculateHours = (entry: TimeEntry) => {
+      if (!entry.end_time) return 0;
+      const start = new Date(entry.start_time);
+      const end = new Date(entry.end_time);
+      return (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+    };
+
     const todayEntries = timeEntries.filter(entry => 
-      entry.start_time.startsWith(today) && entry.total_hours
+      entry.start_time.startsWith(today) && entry.end_time
     );
     const weekEntries = timeEntries.filter(entry => 
-      new Date(entry.start_time) >= thisWeekStart && entry.total_hours
+      new Date(entry.start_time) >= thisWeekStart && entry.end_time
     );
     const monthEntries = timeEntries.filter(entry => 
-      new Date(entry.start_time) >= thisMonthStart && entry.total_hours
+      new Date(entry.start_time) >= thisMonthStart && entry.end_time
     );
 
-    const todayHours = todayEntries.reduce((sum, entry) => sum + (entry.total_hours || 0), 0);
-    const weekHours = weekEntries.reduce((sum, entry) => sum + (entry.total_hours || 0), 0);
-    const monthHours = monthEntries.reduce((sum, entry) => sum + (entry.total_hours || 0), 0);
+    const todayHours = todayEntries.reduce((sum, entry) => sum + calculateHours(entry), 0);
+    const weekHours = weekEntries.reduce((sum, entry) => sum + calculateHours(entry), 0);
+    const monthHours = monthEntries.reduce((sum, entry) => sum + calculateHours(entry), 0);
 
     return {
       today: todayHours,
@@ -257,7 +186,7 @@ export const useTimeTracking = () => {
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
-      await Promise.all([fetchTimeEntries(), fetchProjects(), fetchTasks()]);
+      await Promise.all([fetchTimeEntries(), fetchProjects()]);
       setLoading(false);
     };
 
@@ -269,13 +198,10 @@ export const useTimeTracking = () => {
   return {
     timeEntries,
     projects,
-    tasks,
     activeEntry,
     loading,
     startTracking,
     stopTracking,
-    pauseTracking,
-    resumeTracking,
     getTimeStats,
     refetch: fetchTimeEntries
   };
