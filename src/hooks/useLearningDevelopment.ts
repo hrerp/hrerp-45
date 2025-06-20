@@ -8,7 +8,20 @@ type Course = Tables<'courses'>;
 type CourseEnrollment = Tables<'course_enrollments'> & {
   courses?: Course;
 };
-type Certification = Tables<'certifications'>;
+
+// Define Certification type manually since it's not in the generated types yet
+interface Certification {
+  id: string;
+  employee_id: string;
+  name: string;
+  issuing_organization?: string;
+  issue_date?: string;
+  expiry_date?: string;
+  credential_id?: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
 
 export const useLearningDevelopment = () => {
   const [courses, setCourses] = useState<Course[]>([]);
@@ -22,7 +35,7 @@ export const useLearningDevelopment = () => {
       const { data, error } = await supabase
         .from('courses')
         .select('*')
-        .eq('status', 'active')
+        .eq('is_active', true)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -78,8 +91,8 @@ export const useLearningDevelopment = () => {
 
       if (!employeeData) return;
 
-      const { data, error } = await supabase
-        .from('certifications')
+      const { data, error }: { data: Certification[] | null, error: any } = await supabase
+        .from('certifications' as any)
         .select('*')
         .eq('employee_id', employeeData.id)
         .order('issue_date', { ascending: false });
@@ -175,7 +188,7 @@ export const useLearningDevelopment = () => {
       if (!employeeData) throw new Error('Employee not found');
 
       const { error } = await supabase
-        .from('certifications')
+        .from('certifications' as any)
         .insert([{
           ...certData,
           employee_id: employeeData.id

@@ -2,13 +2,43 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import type { Tables } from '@/integrations/supabase/types';
 
-type PayPeriod = Tables<'pay_periods'>;
-type PayrollRecord = Tables<'payroll_records'> & {
+// Define types manually since they're not in the generated types yet
+interface PayPeriod {
+  id: string;
+  period_name: string;
+  start_date: string;
+  end_date: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface PayrollRecord {
+  id: string;
+  employee_id: string;
+  pay_period_id: string;
+  gross_salary: number;
+  deductions: number;
+  net_salary: number;
+  status: string;
+  created_at: string;
+  updated_at: string;
   pay_periods?: PayPeriod;
-};
-type EmployeeBenefit = Tables<'employee_benefits'>;
+}
+
+interface EmployeeBenefit {
+  id: string;
+  employee_id: string;
+  benefit_type: string;
+  benefit_name: string;
+  amount?: number;
+  status: string;
+  start_date?: string;
+  end_date?: string;
+  created_at: string;
+  updated_at: string;
+}
 
 export const usePayrollManagement = () => {
   const [payPeriods, setPayPeriods] = useState<PayPeriod[]>([]);
@@ -19,8 +49,8 @@ export const usePayrollManagement = () => {
 
   const fetchPayPeriods = async () => {
     try {
-      const { data, error } = await supabase
-        .from('pay_periods')
+      const { data, error }: { data: PayPeriod[] | null, error: any } = await supabase
+        .from('pay_periods' as any)
         .select('*')
         .order('start_date', { ascending: false });
 
@@ -46,11 +76,11 @@ export const usePayrollManagement = () => {
 
       if (!employeeData) return;
 
-      const { data, error } = await supabase
-        .from('payroll_records')
+      const { data, error }: { data: PayrollRecord[] | null, error: any } = await supabase
+        .from('payroll_records' as any)
         .select(`
           *,
-          pay_periods (*)
+          pay_periods:pay_period_id (*)
         `)
         .eq('employee_id', employeeData.id)
         .order('created_at', { ascending: false });
@@ -77,8 +107,8 @@ export const usePayrollManagement = () => {
 
       if (!employeeData) return;
 
-      const { data, error } = await supabase
-        .from('employee_benefits')
+      const { data, error }: { data: EmployeeBenefit[] | null, error: any } = await supabase
+        .from('employee_benefits' as any)
         .select('*')
         .eq('employee_id', employeeData.id)
         .eq('status', 'active')
@@ -99,7 +129,7 @@ export const usePayrollManagement = () => {
   const createPayPeriod = async (payPeriodData: Omit<PayPeriod, 'id' | 'created_at' | 'updated_at'>) => {
     try {
       const { data, error } = await supabase
-        .from('pay_periods')
+        .from('pay_periods' as any)
         .insert([payPeriodData])
         .select()
         .single();
@@ -127,14 +157,14 @@ export const usePayrollManagement = () => {
   const processPayroll = async (payPeriodId: string, employeePayrolls: Omit<PayrollRecord, 'id' | 'created_at' | 'updated_at'>[]) => {
     try {
       const { error } = await supabase
-        .from('payroll_records')
+        .from('payroll_records' as any)
         .insert(employeePayrolls);
 
       if (error) throw error;
 
       // Update pay period status
       await supabase
-        .from('pay_periods')
+        .from('pay_periods' as any)
         .update({ status: 'processing' })
         .eq('id', payPeriodId);
 
@@ -165,7 +195,7 @@ export const usePayrollManagement = () => {
       if (!employeeData) throw new Error('Employee not found');
 
       const { error } = await supabase
-        .from('employee_benefits')
+        .from('employee_benefits' as any)
         .insert([{
           ...benefitData,
           employee_id: employeeData.id
