@@ -2,43 +2,13 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
+import { useSupabaseEmployees } from '@/hooks/useSupabaseEmployees';
+import type { Tables } from '@/integrations/supabase/types';
 
-// Define types manually since they're not in the generated types yet
-interface PayPeriod {
-  id: string;
-  period_name: string;
-  start_date: string;
-  end_date: string;
-  status: string;
-  created_at: string;
-  updated_at: string;
-}
-
-interface PayrollRecord {
-  id: string;
-  employee_id: string;
-  pay_period_id: string;
-  gross_salary: number;
-  deductions: number;
-  net_salary: number;
-  status: string;
-  created_at: string;
-  updated_at: string;
-  pay_periods?: PayPeriod;
-}
-
-interface EmployeeBenefit {
-  id: string;
-  employee_id: string;
-  benefit_type: string;
-  benefit_name: string;
-  amount?: number;
-  status: string;
-  start_date?: string;
-  end_date?: string;
-  created_at: string;
-  updated_at: string;
-}
+type PayPeriod = Tables<'pay_periods'>;
+type PayrollRecord = Tables<'payroll_records'>;
+type EmployeeBenefit = Tables<'employee_benefits'>;
 
 export const usePayrollManagement = () => {
   const [payPeriods, setPayPeriods] = useState<PayPeriod[]>([]);
@@ -46,103 +16,88 @@ export const usePayrollManagement = () => {
   const [benefits, setBenefits] = useState<EmployeeBenefit[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const { user } = useAuth();
+  const { employees } = useSupabaseEmployees();
+
+  const currentEmployee = user ? employees.find(emp => emp.user_id === user.id) : null;
 
   const fetchPayPeriods = async () => {
     try {
-      const { data, error }: { data: PayPeriod[] | null, error: any } = await supabase
-        .from('pay_periods' as any)
+      const { data, error } = await supabase
+        .from('pay_periods')
         .select('*')
         .order('start_date', { ascending: false });
 
       if (error) throw error;
-      setPayPeriods(data || []);
+      setPayPeriods(data as PayPeriod[] || []);
     } catch (error) {
       console.error('Error fetching pay periods:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch pay periods",
-        variant: "destructive"
-      });
+      setPayPeriods([]);
     }
   };
 
   const fetchPayrollRecords = async () => {
+    if (!currentEmployee) return;
+
     try {
-      const { data: employeeData } = await supabase
-        .from('employees')
-        .select('id')
-        .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
-        .single();
-
-      if (!employeeData) return;
-
-      const { data, error }: { data: PayrollRecord[] | null, error: any } = await supabase
-        .from('payroll_records' as any)
+      const { data, error } = await supabase
+        .from('payroll_records')
         .select(`
           *,
-          pay_periods:pay_period_id (*)
+          pay_periods (
+            period_name,
+            start_date,
+            end_date
+          )
         `)
-        .eq('employee_id', employeeData.id)
+        .eq('employee_id', currentEmployee.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setPayrollRecords(data || []);
+      setPayrollRecords(data as PayrollRecord[] || []);
     } catch (error) {
       console.error('Error fetching payroll records:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch payroll records",
-        variant: "destructive"
-      });
+      setPayrollRecords([]);
     }
   };
 
   const fetchBenefits = async () => {
+    if (!currentEmployee) return;
+
     try {
-      const { data: employeeData } = await supabase
-        .from('employees')
-        .select('id')
-        .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
-        .single();
-
-      if (!employeeData) return;
-
-      const { data, error }: { data: EmployeeBenefit[] | null, error: any } = await supabase
-        .from('employee_benefits' as any)
+      const { data, error } = await supabase
+        .from('employee_benefits')
         .select('*')
-        .eq('employee_id', employeeData.id)
+        .eq('employee_id', currentEmployee.id)
         .eq('status', 'active')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setBenefits(data || []);
+      setBenefits(data as EmployeeBenefit[] || []);
     } catch (error) {
       console.error('Error fetching benefits:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch benefits",
-        variant: "destructive"
-      });
+      setBenefits([]);
     }
   };
 
-  const createPayPeriod = async (payPeriodData: Omit<PayPeriod, 'id' | 'created_at' | 'updated_at'>) => {
+  const createPayPeriod = async (periodData: Partial<PayPeriod>) => {
     try {
       const { data, error } = await supabase
-        .from('pay_periods' as any)
-        .insert([payPeriodData])
+        .from('pay_periods')
+        .insert([periodData])
         .select()
         .single();
 
       if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "Pay period created successfully",
-      });
-
+      
       await fetchPayPeriods();
-      return { data, error: null };
+      
+      toast({
+        title: "Pay Period Created",
+        description: "Pay period has been created successfully"
+      });
+      
+      return data;
     } catch (error) {
       console.error('Error creating pay period:', error);
       toast({
@@ -150,30 +105,43 @@ export const usePayrollManagement = () => {
         description: "Failed to create pay period",
         variant: "destructive"
       });
-      return { data: null, error };
+      return null;
     }
   };
 
-  const processPayroll = async (payPeriodId: string, employeePayrolls: Omit<PayrollRecord, 'id' | 'created_at' | 'updated_at'>[]) => {
+  const processPayroll = async (payPeriodId: string) => {
     try {
+      // Get all active employees
+      const { data: activeEmployees, error: empError } = await supabase
+        .from('employees')
+        .select('id, salary')
+        .eq('status', 'active');
+
+      if (empError) throw empError;
+
+      const payrollRecords = activeEmployees?.map(emp => ({
+        employee_id: emp.id,
+        pay_period_id: payPeriodId,
+        gross_salary: emp.salary || 0,
+        deductions: 0,
+        net_salary: emp.salary || 0,
+        status: 'pending' as const
+      })) || [];
+
       const { error } = await supabase
-        .from('payroll_records' as any)
-        .insert(employeePayrolls);
+        .from('payroll_records')
+        .insert(payrollRecords);
 
       if (error) throw error;
-
-      // Update pay period status
-      await supabase
-        .from('pay_periods' as any)
-        .update({ status: 'processing' })
-        .eq('id', payPeriodId);
-
+      
+      await fetchPayrollRecords();
+      
       toast({
-        title: "Success",
-        description: "Payroll processed successfully",
+        title: "Payroll Processed",
+        description: "Payroll has been processed successfully"
       });
-
-      await Promise.all([fetchPayPeriods(), fetchPayrollRecords()]);
+      
+      return true;
     } catch (error) {
       console.error('Error processing payroll:', error);
       toast({
@@ -181,61 +149,8 @@ export const usePayrollManagement = () => {
         description: "Failed to process payroll",
         variant: "destructive"
       });
+      return false;
     }
-  };
-
-  const addBenefit = async (benefitData: Omit<EmployeeBenefit, 'id' | 'employee_id' | 'created_at' | 'updated_at'>) => {
-    try {
-      const { data: employeeData } = await supabase
-        .from('employees')
-        .select('id')
-        .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
-        .single();
-
-      if (!employeeData) throw new Error('Employee not found');
-
-      const { error } = await supabase
-        .from('employee_benefits' as any)
-        .insert([{
-          ...benefitData,
-          employee_id: employeeData.id
-        }]);
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "Benefit added successfully",
-      });
-
-      await fetchBenefits();
-    } catch (error) {
-      console.error('Error adding benefit:', error);
-      toast({
-        title: "Error",
-        description: "Failed to add benefit",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const getPayrollStats = () => {
-    const currentPeriod = payPeriods.find(p => p.status === 'processing' || p.status === 'draft');
-    const lastPayrollRecord = payrollRecords[0];
-    const totalBenefitsValue = benefits.reduce((sum, b) => sum + (b.amount || 0), 0);
-    const avgMonthlySalary = payrollRecords.length > 0 
-      ? payrollRecords.reduce((sum, r) => sum + r.net_salary, 0) / payrollRecords.length 
-      : 0;
-
-    return {
-      currentPeriod,
-      lastPayrollRecord,
-      totalBenefitsValue,
-      avgMonthlySalary,
-      totalPayrollRecords: payrollRecords.length,
-      activeBenefits: benefits.length,
-      pendingPayPeriods: payPeriods.filter(p => p.status === 'draft').length
-    };
   };
 
   useEffect(() => {
@@ -246,7 +161,7 @@ export const usePayrollManagement = () => {
     };
 
     loadData();
-  }, []);
+  }, [currentEmployee]);
 
   return {
     payPeriods,
@@ -255,10 +170,6 @@ export const usePayrollManagement = () => {
     loading,
     createPayPeriod,
     processPayroll,
-    addBenefit,
-    getPayrollStats,
-    refetchPayPeriods: fetchPayPeriods,
-    refetchPayrollRecords: fetchPayrollRecords,
-    refetchBenefits: fetchBenefits
+    refetch: () => Promise.all([fetchPayPeriods(), fetchPayrollRecords(), fetchBenefits()])
   };
 };

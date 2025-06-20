@@ -71,7 +71,7 @@ export const useRecruitment = () => {
     }
   };
 
-  const createJobPosting = async (jobData: Partial<JobPosting>) => {
+  const createJobPosting = async (jobData: Omit<JobPosting, 'id' | 'created_at' | 'updated_at'>) => {
     if (!currentEmployee) {
       toast({
         title: "Error",
@@ -224,6 +224,8 @@ export const useRecruitment = () => {
 
     if (currentEmployee) {
       loadData();
+    } else {
+      setLoading(false);
     }
   }, [currentEmployee]);
 

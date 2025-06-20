@@ -2,26 +2,13 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
+import { useSupabaseEmployees } from '@/hooks/useSupabaseEmployees';
 import type { Tables } from '@/integrations/supabase/types';
 
 type Course = Tables<'courses'>;
-type CourseEnrollment = Tables<'course_enrollments'> & {
-  courses?: Course;
-};
-
-// Define Certification type manually since it's not in the generated types yet
-interface Certification {
-  id: string;
-  employee_id: string;
-  name: string;
-  issuing_organization?: string;
-  issue_date?: string;
-  expiry_date?: string;
-  credential_id?: string;
-  status: string;
-  created_at: string;
-  updated_at: string;
-}
+type CourseEnrollment = Tables<'course_enrollments'>;
+type Certification = Tables<'certifications'>;
 
 export const useLearningDevelopment = () => {
   const [courses, setCourses] = useState<Course[]>([]);
@@ -29,6 +16,10 @@ export const useLearningDevelopment = () => {
   const [certifications, setCertifications] = useState<Certification[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const { user } = useAuth();
+  const { employees } = useSupabaseEmployees();
+
+  const currentEmployee = user ? employees.find(emp => emp.user_id === user.id) : null;
 
   const fetchCourses = async () => {
     try {
@@ -42,99 +33,85 @@ export const useLearningDevelopment = () => {
       setCourses(data || []);
     } catch (error) {
       console.error('Error fetching courses:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch courses",
-        variant: "destructive"
-      });
+      setCourses([]);
     }
   };
 
   const fetchEnrollments = async () => {
+    if (!currentEmployee) return;
+
     try {
-      const { data: employeeData } = await supabase
-        .from('employees')
-        .select('id')
-        .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
-        .single();
-
-      if (!employeeData) return;
-
       const { data, error } = await supabase
         .from('course_enrollments')
         .select(`
           *,
-          courses (*)
+          courses (
+            title,
+            description,
+            category
+          )
         `)
-        .eq('employee_id', employeeData.id)
+        .eq('employee_id', currentEmployee.id)
         .order('enrolled_at', { ascending: false });
 
       if (error) throw error;
       setEnrollments(data || []);
     } catch (error) {
       console.error('Error fetching enrollments:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch enrollments",
-        variant: "destructive"
-      });
+      setEnrollments([]);
     }
   };
 
   const fetchCertifications = async () => {
+    if (!currentEmployee) return;
+
     try {
-      const { data: employeeData } = await supabase
-        .from('employees')
-        .select('id')
-        .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
-        .single();
-
-      if (!employeeData) return;
-
-      const { data, error }: { data: Certification[] | null, error: any } = await supabase
-        .from('certifications' as any)
+      const { data, error } = await supabase
+        .from('certifications')
         .select('*')
-        .eq('employee_id', employeeData.id)
-        .order('issue_date', { ascending: false });
+        .eq('employee_id', currentEmployee.id)
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setCertifications(data || []);
+      setCertifications(data as Certification[] || []);
     } catch (error) {
       console.error('Error fetching certifications:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch certifications",
-        variant: "destructive"
-      });
+      setCertifications([]);
     }
   };
 
   const enrollInCourse = async (courseId: string) => {
+    if (!currentEmployee) {
+      toast({
+        title: "Error",
+        description: "Employee not found",
+        variant: "destructive"
+      });
+      return null;
+    }
+
     try {
-      const { data: employeeData } = await supabase
-        .from('employees')
-        .select('id')
-        .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
-        .single();
-
-      if (!employeeData) throw new Error('Employee not found');
-
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('course_enrollments')
         .insert([{
+          employee_id: currentEmployee.id,
           course_id: courseId,
-          employee_id: employeeData.id,
-          status: 'enrolled'
-        }]);
+          status: 'enrolled',
+          progress: 0
+        }])
+        .select()
+        .single();
 
       if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "Successfully enrolled in course",
-      });
-
+      
       await fetchEnrollments();
+      
+      toast({
+        title: "Enrolled Successfully",
+        description: "You have been enrolled in the course"
+      });
+      
+      return data;
     } catch (error) {
       console.error('Error enrolling in course:', error);
       toast({
@@ -142,66 +119,40 @@ export const useLearningDevelopment = () => {
         description: "Failed to enroll in course",
         variant: "destructive"
       });
+      return null;
     }
   };
 
-  const updateProgress = async (enrollmentId: string, progress: number) => {
-    try {
-      const status = progress >= 100 ? 'completed' : 'in_progress';
-      const completedAt = progress >= 100 ? new Date().toISOString() : null;
-
-      const { error } = await supabase
-        .from('course_enrollments')
-        .update({ 
-          progress, 
-          status,
-          completed_at: completedAt
-        })
-        .eq('id', enrollmentId);
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "Progress updated successfully",
-      });
-
-      await fetchEnrollments();
-    } catch (error) {
-      console.error('Error updating progress:', error);
+  const addCertification = async (certificationData: Partial<Certification>) => {
+    if (!currentEmployee) {
       toast({
         title: "Error",
-        description: "Failed to update progress",
+        description: "Employee not found",
         variant: "destructive"
       });
+      return null;
     }
-  };
 
-  const addCertification = async (certData: Omit<Certification, 'id' | 'employee_id' | 'created_at' | 'updated_at'>) => {
     try {
-      const { data: employeeData } = await supabase
-        .from('employees')
-        .select('id')
-        .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
+      const { data, error } = await supabase
+        .from('certifications')
+        .insert([{
+          ...certificationData,
+          employee_id: currentEmployee.id
+        }])
+        .select()
         .single();
 
-      if (!employeeData) throw new Error('Employee not found');
-
-      const { error } = await supabase
-        .from('certifications' as any)
-        .insert([{
-          ...certData,
-          employee_id: employeeData.id
-        }]);
-
       if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "Certification added successfully",
-      });
-
+      
       await fetchCertifications();
+      
+      toast({
+        title: "Certification Added",
+        description: "Certification has been added successfully"
+      });
+      
+      return data;
     } catch (error) {
       console.error('Error adding certification:', error);
       toast({
@@ -209,26 +160,43 @@ export const useLearningDevelopment = () => {
         description: "Failed to add certification",
         variant: "destructive"
       });
+      return null;
     }
   };
 
-  const getLearningStats = () => {
-    const totalCourses = courses.length;
-    const enrolledCourses = enrollments.length;
-    const completedCourses = enrollments.filter(e => e.status === 'completed').length;
-    const totalHours = enrollments
-      .filter(e => e.status === 'completed')
-      .reduce((sum, e) => sum + (e.courses?.duration_hours || 0), 0);
-    const activeCertifications = certifications.filter(c => c.status === 'active').length;
+  const updateEnrollmentProgress = async (enrollmentId: string, progress: number) => {
+    try {
+      const status = progress >= 100 ? 'completed' : 'in_progress';
+      const { data, error } = await supabase
+        .from('course_enrollments')
+        .update({ 
+          progress,
+          status,
+          completed_at: progress >= 100 ? new Date().toISOString() : null
+        })
+        .eq('id', enrollmentId)
+        .select()
+        .single();
 
-    return {
-      totalCourses,
-      enrolledCourses,
-      completedCourses,
-      totalHours,
-      activeCertifications,
-      inProgressCourses: enrollments.filter(e => e.status === 'in_progress').length
-    };
+      if (error) throw error;
+      
+      await fetchEnrollments();
+      
+      toast({
+        title: "Progress Updated",
+        description: `Course progress updated to ${progress}%`
+      });
+      
+      return data;
+    } catch (error) {
+      console.error('Error updating progress:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update progress",
+        variant: "destructive"
+      });
+      return null;
+    }
   };
 
   useEffect(() => {
@@ -239,7 +207,7 @@ export const useLearningDevelopment = () => {
     };
 
     loadData();
-  }, []);
+  }, [currentEmployee]);
 
   return {
     courses,
@@ -247,11 +215,8 @@ export const useLearningDevelopment = () => {
     certifications,
     loading,
     enrollInCourse,
-    updateProgress,
     addCertification,
-    getLearningStats,
-    refetchCourses: fetchCourses,
-    refetchEnrollments: fetchEnrollments,
-    refetchCertifications: fetchCertifications
+    updateEnrollmentProgress,
+    refetch: () => Promise.all([fetchCourses(), fetchEnrollments(), fetchCertifications()])
   };
 };
