@@ -71,7 +71,7 @@ export const useRecruitment = () => {
     }
   };
 
-  const createJobPosting = async (jobData: Omit<JobPosting, 'id' | 'created_at' | 'updated_at'>) => {
+  const createJobPosting = async (jobData: Partial<JobPosting>) => {
     if (!currentEmployee) {
       toast({
         title: "Error",
@@ -86,7 +86,8 @@ export const useRecruitment = () => {
         .from('job_postings')
         .insert([{
           ...jobData,
-          posted_by: currentEmployee.id
+          posted_by: currentEmployee.id,
+          posted_at: new Date().toISOString()
         }])
         .select()
         .single();

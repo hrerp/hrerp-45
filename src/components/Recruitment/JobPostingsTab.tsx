@@ -47,7 +47,9 @@ const JobPostingsTab = ({ jobs, setSelectedJob }: JobPostingsTabProps) => {
       employment_type: formData.employment_type,
       salary_min: formData.salary_min ? parseFloat(formData.salary_min) : null,
       salary_max: formData.salary_max ? parseFloat(formData.salary_max) : null,
-      status: 'open'
+      status: 'open',
+      posted_at: new Date().toISOString(),
+      posted_by: null // This will be set by the useRecruitment hook
     };
 
     const result = await createJobPosting(jobData);
@@ -73,7 +75,10 @@ const JobPostingsTab = ({ jobs, setSelectedJob }: JobPostingsTabProps) => {
           <span>Active Job Postings</span>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button>Post New Job</Button>
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Post New Job
+              </Button>
             </DialogTrigger>
             <DialogContent className="max-w-2xl">
               <DialogHeader>
