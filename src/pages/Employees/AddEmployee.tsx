@@ -9,7 +9,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Save, User } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import LocationInput from '@/components/ui/LocationInput';
 import { useSupabaseEmployees } from '@/hooks/useSupabaseEmployees';
 
 const AddEmployee = () => {
@@ -23,14 +22,9 @@ const AddEmployee = () => {
     phone: '',
     departmentId: '',
     position: '',
-    location: '',
     startDate: '',
     salary: '',
-    employeeId: '',
-    emergencyContactName: '',
-    emergencyContactPhone: '',
-    address: '',
-    notes: ''
+    employeeId: ''
   });
 
   const handleInputChange = (field: string, value: string) => {
@@ -61,18 +55,14 @@ const AddEmployee = () => {
       phone: formData.phone || null,
       department_id: formData.departmentId,
       position: formData.position || null,
-      location: formData.location || null,
       start_date: formData.startDate || null,
       salary: formData.salary ? parseFloat(formData.salary) : null,
-      emergency_contact_name: formData.emergencyContactName || null,
-      emergency_contact_phone: formData.emergencyContactPhone || null,
-      address: formData.address || null,
-      notes: formData.notes || null,
       status: 'active' as const,
-      manager_id: null, // Can be added later
-      user_id: null // Will be linked when the employee creates an account
+      manager_id: null,
+      user_id: null
     };
 
+    console.log('Submitting employee data:', employeeData);
     const { error } = await addEmployee(employeeData);
     
     if (!error) {
@@ -160,17 +150,6 @@ const AddEmployee = () => {
                 />
               </div>
             </div>
-
-            <div>
-              <Label htmlFor="address">Address</Label>
-              <Textarea
-                id="address"
-                value={formData.address}
-                onChange={(e) => handleInputChange('address', e.target.value)}
-                placeholder="123 Main St, City, State, ZIP"
-                rows={3}
-              />
-            </div>
           </CardContent>
         </Card>
 
@@ -214,12 +193,6 @@ const AddEmployee = () => {
               />
             </div>
 
-            <LocationInput
-              id="location"
-              value={formData.location}
-              onValueChange={(value) => handleInputChange('location', value)}
-            />
-
             <div>
               <Label htmlFor="startDate">Start Date</Label>
               <Input
@@ -238,46 +211,6 @@ const AddEmployee = () => {
                 value={formData.salary}
                 onChange={(e) => handleInputChange('salary', e.target.value)}
                 placeholder="65000"
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Emergency Contact */}
-        <Card className="lg:col-span-3">
-          <CardHeader>
-            <CardTitle>Emergency Contact & Notes</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="emergencyContactName">Emergency Contact Name</Label>
-                <Input
-                  id="emergencyContactName"
-                  value={formData.emergencyContactName}
-                  onChange={(e) => handleInputChange('emergencyContactName', e.target.value)}
-                  placeholder="Jane Doe"
-                />
-              </div>
-              <div>
-                <Label htmlFor="emergencyContactPhone">Emergency Contact Phone</Label>
-                <Input
-                  id="emergencyContactPhone"
-                  value={formData.emergencyContactPhone}
-                  onChange={(e) => handleInputChange('emergencyContactPhone', e.target.value)}
-                  placeholder="+1 (555) 987-6543"
-                />
-              </div>
-            </div>
-
-            <div>
-              <Label htmlFor="notes">Additional Notes</Label>
-              <Textarea
-                id="notes"
-                value={formData.notes}
-                onChange={(e) => handleInputChange('notes', e.target.value)}
-                placeholder="Any additional information..."
-                rows={4}
               />
             </div>
           </CardContent>
