@@ -1,5 +1,6 @@
 
 import { useState } from 'react';
+import { Routes, Route } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DetailsPanel from '@/components/Common/DetailsPanel';
 import RecruitmentStats from '@/components/Recruitment/RecruitmentStats';
@@ -7,9 +8,10 @@ import JobPostingsTab from '@/components/Recruitment/JobPostingsTab';
 import CandidatesTab from '@/components/Recruitment/CandidatesTab';
 import InterviewsTab from '@/components/Recruitment/InterviewsTab';
 import AnalyticsTab from '@/components/Recruitment/AnalyticsTab';
+import PostJob from './PostJob';
 import { useRecruitment } from '@/hooks/useRecruitment';
 
-const RecruitmentManagement = () => {
+const RecruitmentDashboard = () => {
   const { jobPostings, jobApplications, loading } = useRecruitment();
   const [selectedJob, setSelectedJob] = useState<any>(null);
   const [selectedCandidate, setSelectedCandidate] = useState<any>(null);
@@ -99,6 +101,15 @@ const RecruitmentManagement = () => {
         </DetailsPanel>
       </div>
     </div>
+  );
+};
+
+const RecruitmentManagement = () => {
+  return (
+    <Routes>
+      <Route index element={<RecruitmentDashboard />} />
+      <Route path="post-job" element={<PostJob />} />
+    </Routes>
   );
 };
 
