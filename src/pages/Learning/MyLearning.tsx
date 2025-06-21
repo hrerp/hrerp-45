@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -182,7 +181,7 @@ const MyLearning = () => {
                   {enrollments.filter(e => e.status === 'completed').map((enrollment) => {
                     const course = getCourseById(enrollment.course_id);
                     return (
-                      <Car key={enrollment.id} className="p-4">
+                      <Card key={enrollment.id} className="p-4">
                         <div className="flex justify-between items-start">
                           <div>
                             <h3 className="font-semibold">{course?.title || 'Unknown Course'}</h3>
