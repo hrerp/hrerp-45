@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,17 +21,8 @@ const Timesheets = () => {
     getWeekDates 
   } = useTimesheets();
   
-  const { projects, tasks, loading: trackingLoading } = useTimeTracking();
+  const { projects, loading: trackingLoading } = useTimeTracking();
   const [entries, setEntries] = useState<any[]>([]);
-  const [showAddEntry, setShowAddEntry] = useState(false);
-
-  const [newEntry, setNewEntry] = useState({
-    date: new Date().toISOString().split('T')[0],
-    project: '',
-    task: '',
-    hours: '',
-    description: ''
-  });
 
   const loading = timesheetsLoading || trackingLoading;
 
@@ -44,7 +36,7 @@ const Timesheets = () => {
     if (!loading) {
       fetchEntries();
     }
-  }, [selectedWeek, loading]);
+  }, [selectedWeek, loading, getTimesheetEntries, getWeekDates]);
 
   const handleCreateTimesheet = async () => {
     const weekDates = getWeekDates(new Date(selectedWeek));
@@ -62,7 +54,7 @@ const Timesheets = () => {
       approved: 'bg-green-100 text-green-800',
       rejected: 'bg-red-100 text-red-800'
     };
-    return styles[status as keyof typeof styles];
+    return styles[status as keyof typeof styles] || 'bg-gray-100 text-gray-800';
   };
 
   const totalHours = entries.reduce((sum, entry) => sum + (entry.total_hours || 0), 0);
@@ -223,7 +215,6 @@ const Timesheets = () => {
                   <tr className="border-b border-gray-200">
                     <th className="text-left py-3 px-4 font-medium text-gray-900">Date</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-900">Project</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-900">Task</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-900">Hours</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-900">Description</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-900">Status</th>
@@ -237,9 +228,6 @@ const Timesheets = () => {
                       </td>
                       <td className="py-3 px-4 text-gray-900">
                         {entry.projects?.name || 'No Project'}
-                      </td>
-                      <td className="py-3 px-4 text-gray-600">
-                        {entry.tasks?.name || 'No Task'}
                       </td>
                       <td className="py-3 px-4 text-gray-900">
                         {entry.total_hours ? `${Math.round(entry.total_hours * 100) / 100}h` : '-'}

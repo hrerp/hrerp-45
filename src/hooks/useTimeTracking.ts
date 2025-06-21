@@ -6,7 +6,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSupabaseEmployees } from '@/hooks/useSupabaseEmployees';
 import type { Tables } from '@/integrations/supabase/types';
 
-type TimeEntry = Tables<'time_entries'>;
+type TimeEntry = Tables<'time_entries'> & {
+  status?: 'active' | 'paused' | 'completed';
+};
 type Project = Tables<'projects'>;
 
 export const useTimeTracking = () => {
@@ -31,10 +33,17 @@ export const useTimeTracking = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setTimeEntries(data || []);
       
-      // Find active entry - for now, we'll just check for entries without end_time
-      const active = data?.find(entry => !entry.end_time);
+      // Add status based on end_time
+      const entriesWithStatus = data?.map(entry => ({
+        ...entry,
+        status: !entry.end_time ? 'active' : 'completed'
+      })) || [];
+      
+      setTimeEntries(entriesWithStatus);
+      
+      // Find active entry
+      const active = entriesWithStatus.find(entry => !entry.end_time);
       setActiveEntry(active || null);
     } catch (error) {
       console.error('Error fetching time entries:', error);
@@ -90,7 +99,8 @@ export const useTimeTracking = () => {
 
       if (error) throw error;
       
-      setActiveEntry(data);
+      const entryWithStatus = { ...data, status: 'active' as const };
+      setActiveEntry(entryWithStatus);
       await fetchTimeEntries();
       
       toast({
@@ -98,7 +108,7 @@ export const useTimeTracking = () => {
         description: "Timer started successfully"
       });
       
-      return data;
+      return entryWithStatus;
     } catch (error) {
       console.error('Error starting time tracking:', error);
       toast({
@@ -141,6 +151,56 @@ export const useTimeTracking = () => {
       toast({
         title: "Error",
         description: "Failed to stop time tracking",
+        variant: "destructive"
+      });
+      return null;
+    }
+  };
+
+  const pauseTracking = async () => {
+    if (!activeEntry) return null;
+
+    try {
+      // For now, we'll simulate pause by updating a hypothetical status
+      // In a real implementation, you might want to add a status column to time_entries
+      const updatedEntry = { ...activeEntry, status: 'paused' as const };
+      setActiveEntry(updatedEntry);
+      
+      toast({
+        title: "Time Tracking Paused",
+        description: "Timer paused for break"
+      });
+      
+      return updatedEntry;
+    } catch (error) {
+      console.error('Error pausing time tracking:', error);
+      toast({
+        title: "Error",
+        description: "Failed to pause time tracking",
+        variant: "destructive"
+      });
+      return null;
+    }
+  };
+
+  const resumeTracking = async () => {
+    if (!activeEntry) return null;
+
+    try {
+      const updatedEntry = { ...activeEntry, status: 'active' as const };
+      setActiveEntry(updatedEntry);
+      
+      toast({
+        title: "Time Tracking Resumed",
+        description: "Timer resumed from break"
+      });
+      
+      return updatedEntry;
+    } catch (error) {
+      console.error('Error resuming time tracking:', error);
+      toast({
+        title: "Error",
+        description: "Failed to resume time tracking",
         variant: "destructive"
       });
       return null;
@@ -202,6 +262,8 @@ export const useTimeTracking = () => {
     loading,
     startTracking,
     stopTracking,
+    pauseTracking,
+    resumeTracking,
     getTimeStats,
     refetch: fetchTimeEntries
   };
