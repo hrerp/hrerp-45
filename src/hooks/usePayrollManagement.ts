@@ -42,14 +42,7 @@ export const usePayrollManagement = () => {
     try {
       const { data, error } = await supabase
         .from('payroll_records')
-        .select(`
-          *,
-          pay_periods (
-            period_name,
-            start_date,
-            end_date
-          )
-        `)
+        .select('*')
         .eq('employee_id', currentEmployee.id)
         .order('created_at', { ascending: false });
 
@@ -80,19 +73,23 @@ export const usePayrollManagement = () => {
     }
   };
 
-  const createPayPeriod = async (periodData: Partial<PayPeriod>) => {
+  const createPayPeriod = async (periodData: {
+    period_name: string;
+    start_date: string;
+    end_date: string;
+    status?: string;
+  }) => {
     try {
-      // Ensure required fields are present
       const payPeriodData = {
-        period_name: periodData.period_name || 'Unnamed Period',
-        start_date: periodData.start_date || new Date().toISOString().split('T')[0],
-        end_date: periodData.end_date || new Date().toISOString().split('T')[0],
+        period_name: periodData.period_name,
+        start_date: periodData.start_date,
+        end_date: periodData.end_date,
         status: periodData.status || 'draft'
       };
 
       const { data, error } = await supabase
         .from('pay_periods')
-        .insert([payPeriodData])
+        .insert(payPeriodData)
         .select()
         .single();
 
@@ -119,7 +116,6 @@ export const usePayrollManagement = () => {
 
   const processPayroll = async (payPeriodId: string) => {
     try {
-      // Get all active employees
       const { data: activeEmployees, error: empError } = await supabase
         .from('employees')
         .select('id, salary')
@@ -161,6 +157,26 @@ export const usePayrollManagement = () => {
     }
   };
 
+  const getPayrollStats = () => {
+    const currentPeriod = payPeriods.find(p => p.status === 'active') || payPeriods[0];
+    const lastPayrollRecord = payrollRecords[0];
+    const totalPayrollRecords = payrollRecords.length;
+    const totalBenefitsValue = benefits.reduce((sum, benefit) => sum + (benefit.amount || 0), 0);
+    const activeBenefits = benefits.filter(b => b.status === 'active').length;
+    const avgMonthlySalary = payrollRecords.length > 0 
+      ? payrollRecords.reduce((sum, record) => sum + record.net_salary, 0) / payrollRecords.length 
+      : 0;
+
+    return {
+      currentPeriod,
+      lastPayrollRecord,
+      totalPayrollRecords,
+      totalBenefitsValue,
+      activeBenefits,
+      avgMonthlySalary
+    };
+  };
+
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
@@ -178,6 +194,7 @@ export const usePayrollManagement = () => {
     loading,
     createPayPeriod,
     processPayroll,
+    getPayrollStats,
     refetch: () => Promise.all([fetchPayPeriods(), fetchPayrollRecords(), fetchBenefits()])
   };
 };

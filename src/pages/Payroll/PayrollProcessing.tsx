@@ -31,6 +31,10 @@ const PayrollProcessing = () => {
 
   const stats = getPayrollStats();
 
+  const getPayPeriodForRecord = (record: any) => {
+    return payPeriods.find(period => period.id === record.pay_period_id);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -82,8 +86,8 @@ const PayrollProcessing = () => {
           </CardHeader>
           <CardContent>
             <div className="text-sm font-bold">
-              {stats.currentPeriod?.pay_date 
-                ? format(new Date(stats.currentPeriod.pay_date), 'MMM dd, yyyy')
+              {stats.currentPeriod?.end_date 
+                ? format(new Date(stats.currentPeriod.end_date), 'MMM dd, yyyy')
                 : 'Not scheduled'
               }
             </div>
@@ -131,8 +135,8 @@ const PayrollProcessing = () => {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="text-center p-4 bg-gray-50 rounded-lg">
                       <Calendar className="w-8 h-8 text-blue-500 mx-auto mb-2" />
-                      <p className="text-sm text-gray-600">Pay Date</p>
-                      <p className="font-semibold">{format(new Date(stats.currentPeriod.pay_date), 'MMM dd, yyyy')}</p>
+                      <p className="text-sm text-gray-600">End Date</p>
+                      <p className="font-semibold">{format(new Date(stats.currentPeriod.end_date), 'MMM dd, yyyy')}</p>
                     </div>
                     <div className="text-center p-4 bg-gray-50 rounded-lg">
                       <Clock className="w-8 h-8 text-orange-500 mx-auto mb-2" />
@@ -143,7 +147,7 @@ const PayrollProcessing = () => {
                     </div>
                     <div className="text-center p-4 bg-gray-50 rounded-lg">
                       <DollarSign className="w-8 h-8 text-green-500 mx-auto mb-2" />
-                      <p className="text-sm text-gray-600">Avg Monthly</p>
+                      <p className="text-sm text-gray-600">Avg Salary</p>
                       <p className="font-semibold">${stats.avgMonthlySalary.toFixed(2)}</p>
                     </div>
                   </div>
@@ -171,49 +175,46 @@ const PayrollProcessing = () => {
             <CardContent>
               {payrollRecords.length > 0 ? (
                 <div className="space-y-4">
-                  {payrollRecords.map((record) => (
-                    <Card key={record.id} className="p-4">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h3 className="font-semibold">
-                            Pay Period: {record.pay_periods && format(new Date(record.pay_periods.start_date), 'MMM dd')} - {record.pay_periods && format(new Date(record.pay_periods.end_date), 'MMM dd, yyyy')}
-                          </h3>
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-3 text-sm">
-                            <div>
-                              <p className="text-gray-600">Gross Salary</p>
-                              <p className="font-medium">${record.gross_salary.toFixed(2)}</p>
+                  {payrollRecords.map((record) => {
+                    const payPeriod = getPayPeriodForRecord(record);
+                    return (
+                      <Card key={record.id} className="p-4">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h3 className="font-semibold">
+                              Pay Period: {payPeriod ? payPeriod.period_name : 'Unknown Period'}
+                            </h3>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-3 text-sm">
+                              <div>
+                                <p className="text-gray-600">Gross Salary</p>
+                                <p className="font-medium">${record.gross_salary.toFixed(2)}</p>
+                              </div>
+                              <div>
+                                <p className="text-gray-600">Deductions</p>
+                                <p className="font-medium">${record.deductions.toFixed(2)}</p>
+                              </div>
+                              <div>
+                                <p className="text-gray-600">Net Pay</p>
+                                <p className="font-semibold text-green-600">${record.net_salary.toFixed(2)}</p>
+                              </div>
                             </div>
-                            <div>
-                              <p className="text-gray-600">Deductions</p>
-                              <p className="font-medium">${record.deductions.toFixed(2)}</p>
-                            </div>
-                            <div>
-                              <p className="text-gray-600">Tax</p>
-                              <p className="font-medium">${record.tax_deductions.toFixed(2)}</p>
-                            </div>
-                            <div>
-                              <p className="text-gray-600">Net Pay</p>
-                              <p className="font-semibold text-green-600">${record.net_salary.toFixed(2)}</p>
-                            </div>
-                          </div>
-                          {record.paid_at && (
                             <p className="text-sm text-gray-500 mt-2">
-                              Paid on {format(new Date(record.paid_at), 'MMM dd, yyyy')}
+                              Created on {format(new Date(record.created_at), 'MMM dd, yyyy')}
                             </p>
-                          )}
+                          </div>
+                          <div className="flex flex-col space-y-2">
+                            <Badge variant={record.status === 'paid' ? 'default' : 'outline'}>
+                              {record.status}
+                            </Badge>
+                            <Button size="sm" variant="outline">
+                              <Download className="w-4 h-4 mr-2" />
+                              Download
+                            </Button>
+                          </div>
                         </div>
-                        <div className="flex flex-col space-y-2">
-                          <Badge variant={record.status === 'paid' ? 'default' : 'outline'}>
-                            {record.status}
-                          </Badge>
-                          <Button size="sm" variant="outline">
-                            <Download className="w-4 h-4 mr-2" />
-                            Download
-                          </Button>
-                        </div>
-                      </div>
-                    </Card>
-                  ))}
+                      </Card>
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="text-center py-12">
@@ -245,17 +246,17 @@ const PayrollProcessing = () => {
                           <p className="text-sm text-gray-600 capitalize">
                             {benefit.benefit_type.replace('_', ' ')}
                           </p>
-                          {benefit.amount > 0 && (
+                          {benefit.amount && benefit.amount > 0 && (
                             <p className="text-sm font-medium text-green-600 mt-1">
                               Value: ${benefit.amount.toFixed(2)}
                             </p>
                           )}
                           <div className="flex space-x-4 mt-2 text-sm text-gray-500">
-                            {benefit.coverage_start && (
-                              <span>From: {format(new Date(benefit.coverage_start), 'MMM dd, yyyy')}</span>
+                            {benefit.start_date && (
+                              <span>From: {format(new Date(benefit.start_date), 'MMM dd, yyyy')}</span>
                             )}
-                            {benefit.coverage_end && (
-                              <span>Until: {format(new Date(benefit.coverage_end), 'MMM dd, yyyy')}</span>
+                            {benefit.end_date && (
+                              <span>Until: {format(new Date(benefit.end_date), 'MMM dd, yyyy')}</span>
                             )}
                           </div>
                         </div>

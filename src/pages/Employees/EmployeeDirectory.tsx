@@ -9,7 +9,6 @@ import { useSupabaseEmployees } from '@/hooks/useSupabaseEmployees';
 import type { Tables } from '@/integrations/supabase/types';
 
 type Employee = Tables<'employees'>;
-type Department = Tables<'departments'>;
 
 const EmployeeDirectory = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -18,7 +17,6 @@ const EmployeeDirectory = () => {
 
   const { employees, departments, loading } = useSupabaseEmployees();
 
-  // Create department options including 'all'
   const departmentOptions = ['all', ...departments.map(dept => dept.name)];
 
   const filteredEmployees = employees.filter(employee => {
@@ -35,12 +33,10 @@ const EmployeeDirectory = () => {
   });
 
   const handleViewProfile = (employeeId: string) => {
-    console.log('Viewing profile for employee:', employeeId);
     window.location.href = `/employees/${employeeId}`;
   };
 
   const handleEditEmployee = (employeeId: string) => {
-    console.log('Editing employee:', employeeId);
     alert(`Edit functionality for employee ${employeeId} would be implemented here`);
   };
 
@@ -71,7 +67,6 @@ const EmployeeDirectory = () => {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div className="lg:col-span-2 space-y-6">
-        {/* Page Header */}
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Employee Directory</h1>
@@ -85,7 +80,6 @@ const EmployeeDirectory = () => {
           </Link>
         </div>
 
-        {/* Filters */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="relative flex-1">
@@ -115,7 +109,6 @@ const EmployeeDirectory = () => {
           </div>
         </div>
 
-        {/* Employee Grid */}
         {filteredEmployees.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {filteredEmployees.map((employee) => (
@@ -160,7 +153,6 @@ const EmployeeDirectory = () => {
 
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-600">{getEmployeeDepartment(employee)}</span>
-                  {employee.location && <span className="text-gray-600">{employee.location}</span>}
                 </div>
 
                 <div className="mt-4 pt-4 border-t border-gray-200 flex space-x-2">
@@ -208,7 +200,6 @@ const EmployeeDirectory = () => {
           </div>
         )}
 
-        {/* Results Summary */}
         {filteredEmployees.length > 0 && (
           <div className="text-center text-gray-600">
             Showing {filteredEmployees.length} of {employees.length} employees
@@ -241,12 +232,6 @@ const EmployeeDirectory = () => {
                   <p className="text-sm text-gray-500">Department</p>
                   <p className="font-medium">{getEmployeeDepartment(selectedEmployee)}</p>
                 </div>
-                {selectedEmployee.location && (
-                  <div>
-                    <p className="text-sm text-gray-500">Location</p>
-                    <p className="font-medium">{selectedEmployee.location}</p>
-                  </div>
-                )}
                 <div>
                   <p className="text-sm text-gray-500">Email</p>
                   <p className="font-medium">{selectedEmployee.email}</p>

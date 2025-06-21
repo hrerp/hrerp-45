@@ -27,13 +27,12 @@ export const useLearningDevelopment = () => {
         .from('courses')
         .select('*')
         .eq('is_active', true)
-        .order('created_at', { ascending: false });
+        .order('title');
 
       if (error) throw error;
       setCourses(data || []);
     } catch (error) {
       console.error('Error fetching courses:', error);
-      setCourses([]);
     }
   };
 
@@ -43,14 +42,7 @@ export const useLearningDevelopment = () => {
     try {
       const { data, error } = await supabase
         .from('course_enrollments')
-        .select(`
-          *,
-          courses (
-            title,
-            description,
-            category
-          )
-        `)
+        .select('*')
         .eq('employee_id', currentEmployee.id)
         .order('enrolled_at', { ascending: false });
 
@@ -58,7 +50,6 @@ export const useLearningDevelopment = () => {
       setEnrollments(data || []);
     } catch (error) {
       console.error('Error fetching enrollments:', error);
-      setEnrollments([]);
     }
   };
 
@@ -70,13 +61,12 @@ export const useLearningDevelopment = () => {
         .from('certifications')
         .select('*')
         .eq('employee_id', currentEmployee.id)
-        .order('created_at', { ascending: false });
+        .order('issue_date', { ascending: false });
 
       if (error) throw error;
       setCertifications(data || []);
     } catch (error) {
       console.error('Error fetching certifications:', error);
-      setCertifications([]);
     }
   };
 
@@ -96,8 +86,7 @@ export const useLearningDevelopment = () => {
         .insert([{
           employee_id: currentEmployee.id,
           course_id: courseId,
-          status: 'enrolled',
-          progress: 0
+          status: 'enrolled'
         }])
         .select()
         .single();
@@ -123,7 +112,50 @@ export const useLearningDevelopment = () => {
     }
   };
 
-  const addCertification = async (certificationData: Partial<Certification>) => {
+  const updateProgress = async (enrollmentId: string, progress: number) => {
+    try {
+      const updates: any = { progress };
+      
+      if (progress >= 100) {
+        updates.status = 'completed';
+        updates.completed_at = new Date().toISOString();
+      } else if (progress > 0) {
+        updates.status = 'in_progress';
+      }
+
+      const { error } = await supabase
+        .from('course_enrollments')
+        .update(updates)
+        .eq('id', enrollmentId);
+
+      if (error) throw error;
+      
+      await fetchEnrollments();
+      
+      toast({
+        title: "Progress Updated",
+        description: `Course progress updated to ${progress}%`
+      });
+      
+      return true;
+    } catch (error) {
+      console.error('Error updating progress:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update progress",
+        variant: "destructive"
+      });
+      return false;
+    }
+  };
+
+  const addCertification = async (certificationData: {
+    name: string;
+    issuing_organization?: string;
+    issue_date?: string;
+    expiry_date?: string;
+    credential_id?: string;
+  }) => {
     if (!currentEmployee) {
       toast({
         title: "Error",
@@ -134,20 +166,12 @@ export const useLearningDevelopment = () => {
     }
 
     try {
-      // Ensure required fields are present
-      const certData = {
-        employee_id: currentEmployee.id,
-        name: certificationData.name || 'Unnamed Certification',
-        issuing_organization: certificationData.issuing_organization || null,
-        issue_date: certificationData.issue_date || null,
-        expiry_date: certificationData.expiry_date || null,
-        credential_id: certificationData.credential_id || null,
-        status: certificationData.status || 'active'
-      };
-
       const { data, error } = await supabase
         .from('certifications')
-        .insert([certData])
+        .insert({
+          employee_id: currentEmployee.id,
+          ...certificationData
+        })
         .select()
         .single();
 
@@ -172,39 +196,27 @@ export const useLearningDevelopment = () => {
     }
   };
 
-  const updateEnrollmentProgress = async (enrollmentId: string, progress: number) => {
-    try {
-      const status = progress >= 100 ? 'completed' : 'in_progress';
-      const { data, error } = await supabase
-        .from('course_enrollments')
-        .update({ 
-          progress,
-          status,
-          completed_at: progress >= 100 ? new Date().toISOString() : null
-        })
-        .eq('id', enrollmentId)
-        .select()
-        .single();
+  const getLearningStats = () => {
+    const enrolledCourses = enrollments.length;
+    const completedCourses = enrollments.filter(e => e.status === 'completed').length;
+    const inProgressCourses = enrollments.filter(e => e.status === 'in_progress').length;
+    const activeCertifications = certifications.filter(c => c.status === 'active').length;
+    
+    // Calculate total hours from completed courses
+    const totalHours = enrollments
+      .filter(e => e.status === 'completed')
+      .reduce((total, enrollment) => {
+        const course = courses.find(c => c.id === enrollment.course_id);
+        return total + (course?.duration_hours || 0);
+      }, 0);
 
-      if (error) throw error;
-      
-      await fetchEnrollments();
-      
-      toast({
-        title: "Progress Updated",
-        description: `Course progress updated to ${progress}%`
-      });
-      
-      return data;
-    } catch (error) {
-      console.error('Error updating progress:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update progress",
-        variant: "destructive"
-      });
-      return null;
-    }
+    return {
+      enrolledCourses,
+      completedCourses,
+      inProgressCourses,
+      activeCertifications,
+      totalHours
+    };
   };
 
   useEffect(() => {
@@ -223,8 +235,9 @@ export const useLearningDevelopment = () => {
     certifications,
     loading,
     enrollInCourse,
+    updateProgress,
     addCertification,
-    updateEnrollmentProgress,
+    getLearningStats,
     refetch: () => Promise.all([fetchCourses(), fetchEnrollments(), fetchCertifications()])
   };
 };

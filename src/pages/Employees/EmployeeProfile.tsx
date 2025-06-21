@@ -18,7 +18,6 @@ const EmployeeProfilePage = () => {
   const employee = id ? employees.find(emp => emp.id === id) : null;
   const department = employee ? departments.find(dept => dept.id === employee.department_id) : null;
 
-  // Transform Supabase employee to match the component's expected format
   const transformedEmployee = employee ? {
     id: employee.id,
     name: `${employee.first_name} ${employee.last_name}`,
@@ -26,27 +25,17 @@ const EmployeeProfilePage = () => {
     phone: employee.phone || '',
     department: department?.name || 'No Department',
     position: employee.position || 'No Position',
-    location: employee.location || '',
+    location: '', // Not available in current schema
     status: employee.status as 'active' | 'inactive' | 'terminated',
     avatar: undefined,
     startDate: employee.start_date || '',
     salary: employee.salary || undefined,
     managerId: employee.manager_id || undefined,
-    emergencyContact: employee.emergency_contact_name ? {
-      name: employee.emergency_contact_name,
-      phone: employee.emergency_contact_phone || '',
-      relationship: 'Emergency Contact'
-    } : undefined,
-    address: employee.address ? {
-      street: employee.address,
-      city: '',
-      state: '',
-      zipCode: '',
-      country: ''
-    } : undefined,
+    emergencyContact: undefined, // Not available in current schema
+    address: undefined, // Not available in current schema
     skills: [],
     certifications: [],
-    notes: employee.notes || '',
+    notes: '', // Not available in current schema
     createdAt: employee.created_at || '',
     updatedAt: employee.updated_at || ''
   } : null;
@@ -73,7 +62,6 @@ const EmployeeProfilePage = () => {
   }
 
   const handleEdit = () => {
-    // In a real app, this would open an edit modal or navigate to edit page
     toast({
       title: "Edit Employee",
       description: "Edit functionality would be implemented here",
@@ -101,7 +89,6 @@ const EmployeeProfilePage = () => {
 
   return (
     <div className="space-y-6">
-      {/* Navigation */}
       <div className="flex items-center space-x-4">
         <Button variant="outline" onClick={() => navigate('/employees')}>
           <ArrowLeft className="w-4 h-4 mr-2" />
@@ -109,7 +96,6 @@ const EmployeeProfilePage = () => {
         </Button>
       </div>
 
-      {/* Employee Profile Component */}
       <EmployeeProfile 
         employee={transformedEmployee}
         onEdit={handleEdit}

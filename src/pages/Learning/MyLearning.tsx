@@ -32,6 +32,10 @@ const MyLearning = () => {
 
   const stats = getLearningStats();
 
+  const getCourseById = (courseId: string) => {
+    return courses.find(course => course.id === courseId);
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -105,49 +109,52 @@ const MyLearning = () => {
             <CardContent>
               {enrollments.filter(e => e.status !== 'completed').length > 0 ? (
                 <div className="space-y-4">
-                  {enrollments.filter(e => e.status !== 'completed').map((enrollment) => (
-                    <Card key={enrollment.id} className="p-4">
-                      <div className="flex justify-between items-start mb-4">
-                        <div>
-                          <h3 className="font-semibold">{enrollment.courses?.title}</h3>
-                          <p className="text-sm text-gray-600">{enrollment.courses?.description}</p>
-                          {enrollment.courses?.category && (
-                            <Badge variant="outline" className="mt-2">
-                              {enrollment.courses.category}
-                            </Badge>
-                          )}
+                  {enrollments.filter(e => e.status !== 'completed').map((enrollment) => {
+                    const course = getCourseById(enrollment.course_id);
+                    return (
+                      <Card key={enrollment.id} className="p-4">
+                        <div className="flex justify-between items-start mb-4">
+                          <div>
+                            <h3 className="font-semibold">{course?.title || 'Unknown Course'}</h3>
+                            <p className="text-sm text-gray-600">{course?.description || ''}</p>
+                            {course?.category && (
+                              <Badge variant="outline" className="mt-2">
+                                {course.category}
+                              </Badge>
+                            )}
+                          </div>
+                          <Badge variant={enrollment.status === 'in_progress' ? 'default' : 'outline'}>
+                            {enrollment.status?.replace('_', ' ')}
+                          </Badge>
                         </div>
-                        <Badge variant={enrollment.status === 'in_progress' ? 'default' : 'outline'}>
-                          {enrollment.status?.replace('_', ' ')}
-                        </Badge>
-                      </div>
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span>Progress</span>
-                          <span>{enrollment.progress || 0}%</span>
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span>Progress</span>
+                            <span>{enrollment.progress || 0}%</span>
+                          </div>
+                          <Progress value={enrollment.progress || 0} />
                         </div>
-                        <Progress value={enrollment.progress || 0} />
-                      </div>
-                      {enrollment.courses?.duration_hours && (
-                        <p className="text-sm text-gray-500 mt-2">
-                          Duration: {enrollment.courses.duration_hours} hours
-                        </p>
-                      )}
-                      <div className="flex space-x-2 mt-4">
-                        <Button size="sm">
-                          <Play className="w-4 h-4 mr-2" />
-                          Continue Learning
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => updateProgress(enrollment.id, Math.min((enrollment.progress || 0) + 10, 100))}
-                        >
-                          Update Progress
-                        </Button>
-                      </div>
-                    </Card>
-                  ))}
+                        {course?.duration_hours && (
+                          <p className="text-sm text-gray-500 mt-2">
+                            Duration: {course.duration_hours} hours
+                          </p>
+                        )}
+                        <div className="flex space-x-2 mt-4">
+                          <Button size="sm">
+                            <Play className="w-4 h-4 mr-2" />
+                            Continue Learning
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => updateProgress(enrollment.id, Math.min((enrollment.progress || 0) + 10, 100))}
+                          >
+                            Update Progress
+                          </Button>
+                        </div>
+                      </Card>
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="text-center py-12">
@@ -172,26 +179,29 @@ const MyLearning = () => {
             <CardContent>
               {enrollments.filter(e => e.status === 'completed').length > 0 ? (
                 <div className="space-y-4">
-                  {enrollments.filter(e => e.status === 'completed').map((enrollment) => (
-                    <Card key={enrollment.id} className="p-4">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h3 className="font-semibold">{enrollment.courses?.title}</h3>
-                          <p className="text-sm text-gray-600">{enrollment.courses?.description}</p>
-                          {enrollment.completed_at && (
-                            <p className="text-sm text-gray-500 mt-2">
-                              <Calendar className="w-4 h-4 inline mr-1" />
-                              Completed on {format(new Date(enrollment.completed_at), 'MMM dd, yyyy')}
-                            </p>
-                          )}
+                  {enrollments.filter(e => e.status === 'completed').map((enrollment) => {
+                    const course = getCourseById(enrollment.course_id);
+                    return (
+                      <Car key={enrollment.id} className="p-4">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h3 className="font-semibold">{course?.title || 'Unknown Course'}</h3>
+                            <p className="text-sm text-gray-600">{course?.description || ''}</p>
+                            {enrollment.completed_at && (
+                              <p className="text-sm text-gray-500 mt-2">
+                                <Calendar className="w-4 h-4 inline mr-1" />
+                                Completed on {format(new Date(enrollment.completed_at), 'MMM dd, yyyy')}
+                              </p>
+                            )}
+                          </div>
+                          <Badge variant="default">
+                            <Trophy className="w-4 h-4 mr-1" />
+                            Completed
+                          </Badge>
                         </div>
-                        <Badge variant="default">
-                          <Trophy className="w-4 h-4 mr-1" />
-                          Completed
-                        </Badge>
-                      </div>
-                    </Card>
-                  ))}
+                      </Card>
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="text-center py-12">
@@ -220,8 +230,8 @@ const MyLearning = () => {
                       <div className="flex justify-between items-start">
                         <div>
                           <h3 className="font-semibold">{cert.name}</h3>
-                          {cert.issuer && (
-                            <p className="text-sm text-gray-600">Issued by {cert.issuer}</p>
+                          {cert.issuing_organization && (
+                            <p className="text-sm text-gray-600">Issued by {cert.issuing_organization}</p>
                           )}
                           <div className="flex space-x-4 mt-2 text-sm text-gray-500">
                             {cert.issue_date && (
